@@ -33,8 +33,10 @@ Every tick (default 60s) the daemon runs one reconcile pass:
    `reviewTrigger: "any_review"`, any substantive `COMMENTED` review): the
    daemon sends the review body plus all inline comments as a follow-up turn
    to the same thread. The session addresses the feedback, pushes to the same
-   branch, and summarizes in a PR comment; the daemon then requests a fresh
-   review. Each round of work asks for review exactly once.
+   branch, replies to each inline thread and resolves the ones it fully
+   addressed (leaving the rest for you), and summarizes in a PR comment; the
+   daemon then requests a fresh review. Each round of work asks for review
+   exactly once.
 4. PR merged or closed: the thread is archived, which also stops the provider
    session.
 

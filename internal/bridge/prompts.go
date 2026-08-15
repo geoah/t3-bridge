@@ -51,18 +51,25 @@ func reviewPrompt(repo string, prNumber int, branch string, reviews []gh.Review,
 			} else if cm.OriginalLine != nil {
 				line = *cm.OriginalLine
 			}
-			fmt.Fprintf(&b, "\nInline comment on %s:%d (%s):\n%s\n", cm.Path, line, cm.HTMLURL, strings.TrimSpace(cm.Body))
+			fmt.Fprintf(&b, "\nInline comment id %d on %s:%d (%s):\n%s\n", cm.ID, cm.Path, line, cm.HTMLURL, strings.TrimSpace(cm.Body))
 		}
 		b.WriteString("\n")
 	}
+	owner, name, _ := strings.Cut(repo, "/")
 	fmt.Fprintf(&b, `Instructions:
 1. Pull the latest state of your branch first: git pull origin %[1]s
    You can inspect the full review thread with: gh pr view %[2]d --repo %[3]s --comments
 2. Address every point above. If you disagree with a point, explain why in your reply instead of silently skipping it.
 3. Run the relevant tests, commit, and push to the same branch (%[1]s).
-4. Post a PR comment summarizing how each point was addressed: gh pr comment %[2]d --repo %[3]s
-5. Do not merge the PR and do not request reviewers; a fresh review is requested automatically once your turn ends. Merging is the owner's decision.
-`, branch, prNumber, repo)
+4. Reply to every inline comment, on its own thread, saying what you changed (or why you disagree). Use the comment id shown above:
+   gh api repos/%[3]s/pulls/%[2]d/comments/COMMENT_ID/replies -X POST -f body='...'
+5. Resolve the threads you have fully addressed. Leave a thread unresolved if you disagreed, or only partly addressed it, so the reviewer can decide. Thread ids come from GraphQL, not the REST comment ids:
+   gh api graphql -f query='{repository(owner:"%[4]s",name:"%[5]s"){pullRequest(number:%[2]d){reviewThreads(first:100){nodes{id isResolved comments(first:1){nodes{databaseId body}}}}}}}'
+   then for each thread you addressed:
+   gh api graphql -f query='mutation($t:ID!){resolveReviewThread(input:{threadId:$t}){thread{isResolved}}}' -f t=THREAD_ID
+6. Post a PR comment summarizing how each point was addressed: gh pr comment %[2]d --repo %[3]s
+7. Do not merge the PR and do not request reviewers; a fresh review is requested automatically once your turn ends. Merging is the owner's decision.
+`, branch, prNumber, repo, owner, name)
 	return b.String()
 }
 
