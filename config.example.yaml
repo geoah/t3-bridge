@@ -1,0 +1,25 @@
+t3:
+  baseUrl: http://127.0.0.1:3773
+  tokenFile: ~/.config/t3-bridge/token
+  # worktreesDir: ~/.t3/worktrees
+
+state:
+  file: ~/.local/state/t3-bridge/state.json
+
+poll:
+  intervalSeconds: 60
+
+ui:
+  listen: 127.0.0.1:3775 # "off" to disable
+
+repos:
+  - repo: owner/name
+    assignee: github-login
+    workspaceRoot: /path/to/local/checkout
+    # projectId: ""                      # alternative to workspaceRoot
+    # baseBranch: main                   # defaults to the repo default branch
+    # reviewTrigger: changes_requested   # or any_review (needed when you review your own PRs)
+    # branchPrefix: t3/
+    # model:
+    #   instanceId: claudeAgent
+    #   model: claude-fable-5

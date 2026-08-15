@@ -1,0 +1,19 @@
+[Unit]
+Description=t3-bridge (GitHub issues -> t3 sessions -> draft PRs)
+After=t3code.service
+Wants=t3code.service
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=%h
+Environment=PATH=%h/.local/bin:%h/.local/share/mise/shims:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/bin/t3-bridge run
+Restart=always
+RestartSec=10
+StandardOutput=append:%h/.local/state/t3-bridge/t3-bridge.log
+StandardError=append:%h/.local/state/t3-bridge/t3-bridge.log
+
+[Install]
+WantedBy=default.target
