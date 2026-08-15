@@ -77,9 +77,8 @@ func main() {
 			start := time.Now()
 			if err := b.Tick(ctx); err != nil {
 				log.Error("tick failed", "err", err)
-			} else {
-				log.Debug("tick completed", "took", time.Since(start).Round(time.Millisecond))
 			}
+			bus.SetTick(start, start.Add(interval))
 			select {
 			case <-ctx.Done():
 				log.Info("shutting down")

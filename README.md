@@ -113,8 +113,9 @@ model override, t3 project id).
 `t3-bridge run` serves a single-page monitoring UI (default
 `http://127.0.0.1:3775`, configurable via `ui.listen`, `"off"` disables it).
 It tails the daemon's events over SSE: session starts, PR discoveries,
-forwarded reviews, errors, plus a dim per-tick heartbeat. The last 500 events
-are replayed on connect.
+forwarded reviews, errors. The header shows when the last reconcile tick ran
+and counts down to the next one. The last 500 events are replayed on
+connect.
 
 To reach it from other machines on your tailnet without exposing it further,
 put it behind Tailscale serve on a spare HTTPS port:

@@ -1,6 +1,7 @@
 // Package ui serves a minimal monitoring page for the daemon: an embedded
 // HTML page that tails the daemon's log events over SSE. Every slog record
-// becomes an event via the Handler in log.go.
+// becomes an event via the Handler in log.go. Tick status is broadcast as a
+// transient named SSE event and shown in the page header, not in the log.
 package ui
 
 import (
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 )
 
 // Event is one log line, shown as one row in the UI.
@@ -20,6 +22,20 @@ type Event struct {
 	Attrs map[string]string `json:"attrs,omitempty"`
 }
 
+// TickStatus is shown in the page header.
+type TickStatus struct {
+	Last string `json:"last"`
+	Next string `json:"next"`
+}
+
+// sseMsg is one wire frame: an optional named event with a payload, plus an
+// id for log events so reconnects can resume via Last-Event-ID.
+type sseMsg struct {
+	id    int64
+	event string
+	data  []byte
+}
+
 const bufferSize = 500
 
 // Bus fans events out to SSE subscribers and keeps a replay ring buffer.
@@ -27,12 +43,22 @@ type Bus struct {
 	mu     sync.Mutex
 	seq    int64
 	buf    []Event
-	subs   map[int64]chan Event
+	subs   map[int64]chan sseMsg
 	nextID int64
+	tick   *TickStatus
 }
 
 func NewBus() *Bus {
-	return &Bus{subs: map[int64]chan Event{}}
+	return &Bus{subs: map[int64]chan sseMsg{}}
+}
+
+func (b *Bus) broadcastLocked(msg sseMsg) {
+	for _, ch := range b.subs {
+		select {
+		case ch <- msg:
+		default: // slow subscriber; drop rather than block logging
+		}
+	}
 }
 
 func (b *Bus) Publish(ev Event) {
@@ -44,24 +70,45 @@ func (b *Bus) Publish(ev Event) {
 	if len(b.buf) > bufferSize {
 		b.buf = b.buf[len(b.buf)-bufferSize:]
 	}
-	for _, ch := range b.subs {
-		select {
-		case ch <- ev:
-		default: // slow subscriber; drop rather than block logging
-		}
-	}
+	b.broadcastLocked(logMsg(ev))
 }
 
-// subscribe returns events after seq from the buffer plus a live channel.
-func (b *Bus) subscribe(afterSeq int64) (replay []Event, ch chan Event, cancel func()) {
+// SetTick records the last tick time and the expected next one, and pushes
+// the update to connected pages. Not stored in the replay buffer.
+func (b *Bus) SetTick(last, next time.Time) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.tick = &TickStatus{
+		Last: last.UTC().Format(time.RFC3339),
+		Next: next.UTC().Format(time.RFC3339),
+	}
+	b.broadcastLocked(tickMsg(*b.tick))
+}
+
+func logMsg(ev Event) sseMsg {
+	data, _ := json.Marshal(ev)
+	return sseMsg{id: ev.Seq, data: data}
+}
+
+func tickMsg(t TickStatus) sseMsg {
+	data, _ := json.Marshal(t)
+	return sseMsg{event: "tick", data: data}
+}
+
+// subscribe returns log events after seq plus the current tick status, and a
+// live channel.
+func (b *Bus) subscribe(afterSeq int64) (replay []sseMsg, ch chan sseMsg, cancel func()) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	for _, ev := range b.buf {
 		if ev.Seq > afterSeq {
-			replay = append(replay, ev)
+			replay = append(replay, logMsg(ev))
 		}
 	}
-	ch = make(chan Event, 64)
+	if b.tick != nil {
+		replay = append(replay, tickMsg(*b.tick))
+	}
+	ch = make(chan sseMsg, 64)
 	id := b.nextID
 	b.nextID++
 	b.subs[id] = ch
@@ -107,18 +154,24 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 	replay, ch, cancel := s.Bus.subscribe(afterSeq)
 	defer cancel()
 
-	write := func(ev Event) bool {
-		data, err := json.Marshal(ev)
-		if err != nil {
-			return true
+	write := func(msg sseMsg) bool {
+		if msg.event != "" {
+			if _, err := fmt.Fprintf(w, "event: %s\n", msg.event); err != nil {
+				return false
+			}
 		}
-		if _, err := fmt.Fprintf(w, "id: %d\ndata: %s\n\n", ev.Seq, data); err != nil {
+		if msg.id != 0 {
+			if _, err := fmt.Fprintf(w, "id: %d\n", msg.id); err != nil {
+				return false
+			}
+		}
+		if _, err := fmt.Fprintf(w, "data: %s\n\n", msg.data); err != nil {
 			return false
 		}
 		return true
 	}
-	for _, ev := range replay {
-		if !write(ev) {
+	for _, msg := range replay {
+		if !write(msg) {
 			return
 		}
 	}
@@ -127,8 +180,8 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 			return
-		case ev := <-ch:
-			if !write(ev) {
+		case msg := <-ch:
+			if !write(msg) {
 				return
 			}
 			flusher.Flush()

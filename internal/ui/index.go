@@ -12,6 +12,7 @@ const indexHTML = `<!doctype html>
   h1 { font-size: 14px; margin: 0; font-weight: 600; }
   #status { font-size: 12px; color: #7f849c; }
   #status.live { color: #a6e3a1; }
+  #tick { font-size: 12px; color: #7f849c; margin-left: auto; }
   #log { padding: 8px 16px 24px; }
   .row { white-space: pre-wrap; word-break: break-word; padding: 1px 0; }
   .lvl { display: inline-block; width: 5ch; }
@@ -23,7 +24,7 @@ const indexHTML = `<!doctype html>
 </style>
 </head>
 <body>
-<header><h1>t3-bridge</h1><span id="status">connecting…</span></header>
+<header><h1>t3-bridge</h1><span id="status">connecting…</span><span id="tick"></span></header>
 <div id="log"></div>
 <script>
   const log = document.getElementById('log');
@@ -43,9 +44,18 @@ const indexHTML = `<!doctype html>
     log.prepend(div);
     while (log.childElementCount > 1000) log.lastChild.remove();
   }
+  const tickEl = document.getElementById('tick');
+  let tick = null;
+  function renderTick() {
+    if (!tick) return;
+    const secs = Math.max(0, Math.round((new Date(tick.next) - Date.now()) / 1000));
+    tickEl.textContent = 'last tick ' + new Date(tick.last).toLocaleTimeString() + ' · next in ' + secs + 's';
+  }
+  setInterval(renderTick, 1000);
   const es = new EventSource('events');
   es.onopen = () => { status.textContent = 'live'; status.className = 'live'; };
   es.onmessage = m => add(JSON.parse(m.data));
+  es.addEventListener('tick', m => { tick = JSON.parse(m.data); renderTick(); });
   es.onerror = () => { status.textContent = 'disconnected, retrying…'; status.className = ''; };
 </script>
 </body>
