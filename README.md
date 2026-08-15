@@ -104,8 +104,8 @@ model override, t3 project id).
 `run` re-reads the config file before each tick and picks up changes without
 a restart, so an edit takes effect within one poll interval. That covers
 `repos` and everything under it (model, assignee, review trigger, base
-branch, branch prefix, reviewer), `prompt.suffix`, `poll.intervalSeconds`,
-and `t3.worktreesDir`.
+branch, branch prefix), `prompt.suffix`, `poll.intervalSeconds`, and
+`t3.worktreesDir`.
 
 Four settings are wired up once at startup and are only applied by a restart:
 `t3.baseUrl`, `t3.tokenFile`, `state.file`, and `ui.listen`. Changing one
@@ -141,10 +141,6 @@ prompt:
     does not allow "Request changes" on your own PR. Empty synthetic reviews
     created by replying to inline threads are ignored, so the session
     replying to feedback cannot re-trigger itself.
-- `reviewer`: who is asked for review once the work is ready; defaults to
-  `assignee`. GitHub refuses to let an author review their own PR, so in
-  single-account setups the request is skipped with a warning (the PR is
-  still marked ready).
 - `model`: per-repo model override, defaults to the t3 project's model:
 
   ```yaml

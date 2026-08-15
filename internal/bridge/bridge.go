@@ -313,7 +313,7 @@ func (b *Bridge) markReady(ctx context.Context, item *state.Item, th *t3.ThreadS
 	if th.LatestTurn == nil || th.LatestTurn.State != t3.TurnStateCompleted {
 		return
 	}
-	if item.ReviewRequestedTurnID == th.LatestTurn.TurnID {
+	if item.ReadyMarkedTurnID == th.LatestTurn.TurnID {
 		return
 	}
 	if pr.Draft {
@@ -323,7 +323,7 @@ func (b *Bridge) markReady(ctx context.Context, item *state.Item, th *t3.ThreadS
 		}
 		log.Info("marked PR ready for review", "pr", pr.Number)
 	}
-	item.ReviewRequestedTurnID = th.LatestTurn.TurnID
+	item.ReadyMarkedTurnID = th.LatestTurn.TurnID
 	b.St.Put(item)
 }
 

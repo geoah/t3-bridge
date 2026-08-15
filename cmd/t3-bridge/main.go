@@ -37,10 +37,13 @@ func main() {
 	bus := ui.NewBus()
 	log := slog.New(ui.NewHandler(stderrHandler, bus))
 
-	cfg, err := config.Load(*configPath)
+	cfg, watcher, err := config.Watch(*configPath)
 	if err != nil {
 		fatal(log, "load config", err)
 	}
+	// booted keeps the settings the process wired up at startup, so the
+	// reload path can tell which of them a later edit cannot apply.
+	booted := cfg
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -72,7 +75,6 @@ func main() {
 		}
 		interval := time.Duration(cfg.Poll.IntervalSeconds) * time.Second
 		log.Info("t3-bridge running", "interval", interval, "repos", len(cfg.Repos))
-		watcher := config.NewWatcher(*configPath)
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {
@@ -84,7 +86,7 @@ func main() {
 			case err != nil:
 				log.Error("config reload failed, keeping the previous config", "path", watcher.Path(), "err", err)
 			case next != nil:
-				if restart := config.RestartRequired(cfg, next); len(restart) > 0 {
+				if restart := config.RestartRequired(booted, next); len(restart) > 0 {
 					log.Warn("these settings only apply at startup; restart t3-bridge to pick them up",
 						"settings", strings.Join(restart, ", "))
 				}

@@ -205,9 +205,6 @@ func (c *Client) MarkPRReady(ctx context.Context, repo string, number int) error
 	return nil
 }
 
-// Reviews are never requested on GitHub: the session reviews its own change
-// locally before pushing, so there is no RequestReviewer here.
-
 // Viewer returns the authenticated login, as a doctor check.
 func (c *Client) Viewer(ctx context.Context) (string, error) {
 	var u User

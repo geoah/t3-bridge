@@ -141,10 +141,18 @@ func DefaultPath() string {
 }
 
 func Load(path string) (*Config, error) {
-	data, err := os.ReadFile(expandHome(path))
+	path = expandHome(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
+	return parse(data, path)
+}
+
+// parse turns already-read config bytes into a Config. Watch reads the file
+// itself so it can remember the exact bytes it parsed, so the reading and
+// the parsing are kept separate.
+func parse(data []byte, path string) (*Config, error) {
 	var cfg Config
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)

@@ -79,7 +79,7 @@ func reviewPrompt(repo string, prNumber int, branch string, reviews []gh.Review,
    then for each thread you addressed:
    gh api graphql -f query='mutation($t:ID!){resolveReviewThread(input:{threadId:$t}){thread{isResolved}}}' -f t=THREAD_ID
 7. Post a PR comment summarizing how each point was addressed: gh pr comment %[2]d --repo %[3]s
-8. Do not merge the PR and do not request reviewers; a fresh review is requested automatically once your turn ends. Merging is the owner's decision.
+8. Do not merge the PR and do not request reviewers on GitHub; review your own change locally instead. Merging is the owner's decision.
 `, branch, prNumber, repo, owner, name)
 	return b.String()
 }
