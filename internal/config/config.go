@@ -73,10 +73,6 @@ type RepoConfig struct {
 	ProjectID     string `yaml:"projectId,omitempty"`
 	// BaseBranch for new worktrees; defaults to the repo default branch.
 	BaseBranch string `yaml:"baseBranch,omitempty"`
-	// Reviewer is requested on the PR once the work is ready; defaults to
-	// Assignee. GitHub rejects requesting a review from the PR's own
-	// author, which is logged as a warning.
-	Reviewer string `yaml:"reviewer,omitempty"`
 	// Model overrides the project default model for sessions on this repo.
 	Model *ModelConfig `yaml:"model,omitempty"`
 	// ReviewTrigger defaults to changes_requested.
@@ -199,9 +195,6 @@ func Load(path string) (*Config, error) {
 		}
 		if rc.BranchPrefix == "" {
 			rc.BranchPrefix = "t3/"
-		}
-		if rc.Reviewer == "" {
-			rc.Reviewer = rc.Assignee
 		}
 		if rc.Model != nil && rc.Model.Model == "" {
 			return nil, fmt.Errorf("config: repo %s: model.model is required when model is set", rc.Repo)

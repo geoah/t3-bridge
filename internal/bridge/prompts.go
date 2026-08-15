@@ -35,7 +35,7 @@ func issuePrompt(repo string, issue *gh.Issue, branch string) string {
 4. Commit with clear messages and push the branch: git push -u origin %[1]s
 5. Open a draft pull request: gh pr create --repo %[3]s --draft --head %[1]s
    The PR body MUST contain the line "Fixes #%[2]d" and should summarize the change and any decisions you made on your own.
-   Leave it as a draft and do not request reviewers; it is marked ready for review automatically once your turn ends.
+   Leave it as a draft and do not request reviewers on GitHub; review your own change locally instead, and the PR is marked ready for review automatically once your turn ends.
 6. If the issue cannot reasonably be implemented (contradictory, already done, not actionable), do NOT open a PR; instead explain why in a comment: gh issue comment %[2]d --repo %[3]s
 `, branch, issue.Number, repo)
 	return b.String()

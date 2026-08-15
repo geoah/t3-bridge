@@ -25,8 +25,9 @@ Every tick (default 60s) the daemon runs one reconcile pass:
    `Fixes #N`. The daemon also comments on the issue so there is a visible
    record.
 2. Session turn finished: the daemon finds the PR by its head branch and
-   records it, marks it ready for review, and requests a review from the
-   configured reviewer. If the turn completed without a PR it nudges the
+   records it and marks it ready for review. It never requests a reviewer on
+   GitHub; the session reviews its own change locally before it pushes, which
+   `prompt.suffix` drives. If the turn completed without a PR it nudges the
    session once (the session may legitimately have declined and commented on
    the issue).
 3. New review on the PR with state `CHANGES_REQUESTED` (or, with

@@ -26,7 +26,6 @@ repos:
     workspaceRoot: /path/to/local/checkout
     # projectId: ""                      # alternative to workspaceRoot
     # baseBranch: main                   # defaults to the repo default branch
-    # reviewer: github-login             # defaults to assignee
     # reviewTrigger: changes_requested   # or any_review (needed when you review your own PRs)
     # branchPrefix: t3/
     # promptSuffix: |                    # appended after the global prompt.suffix

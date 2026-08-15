@@ -300,13 +300,16 @@ func (b *Bridge) reconcileItem(ctx context.Context, rc *config.RepoConfig, item 
 		log.Info("issue flow finished", "reason", reason, "pr", pr.Number)
 		return nil
 	}
-	b.requestReview(ctx, rc, item, th, pr, log)
+	b.markReady(ctx, item, th, pr, log)
 	return b.forwardNewReviews(ctx, rc, item, th, log)
 }
 
-// requestReview promotes the PR out of draft and asks the reviewer to look,
-// once per round of session work.
-func (b *Bridge) requestReview(ctx context.Context, rc *config.RepoConfig, item *state.Item, th *t3.ThreadShell, pr *gh.PullRequest, log *slog.Logger) {
+// markReady promotes the PR out of draft once per round of session work.
+//
+// The daemon does not request a reviewer on GitHub. Review happens locally
+// inside the session before it pushes, driven by prompt.suffix; a GitHub
+// review request would only invite a second, redundant pass.
+func (b *Bridge) markReady(ctx context.Context, item *state.Item, th *t3.ThreadShell, pr *gh.PullRequest, log *slog.Logger) {
 	if th.LatestTurn == nil || th.LatestTurn.State != t3.TurnStateCompleted {
 		return
 	}
@@ -319,15 +322,6 @@ func (b *Bridge) requestReview(ctx context.Context, rc *config.RepoConfig, item 
 			return
 		}
 		log.Info("marked PR ready for review", "pr", pr.Number)
-	}
-	if !pr.ReviewerRequested(rc.Reviewer) {
-		if err := b.GH.RequestReviewer(ctx, item.Repo, pr.Number, rc.Reviewer); err != nil {
-			// Most often GitHub refusing to let an author review their
-			// own PR; the PR is ready either way, so do not retry.
-			log.Warn("request reviewer", "pr", pr.Number, "reviewer", rc.Reviewer, "err", err)
-		} else {
-			log.Info("requested review", "pr", pr.Number, "reviewer", rc.Reviewer)
-		}
 	}
 	item.ReviewRequestedTurnID = th.LatestTurn.TurnID
 	b.St.Put(item)
