@@ -12,6 +12,14 @@ poll:
 ui:
   listen: 127.0.0.1:3775 # "off" to disable
 
+# Extra instructions appended to every prompt sent to a session. Repos can
+# add their own with promptSuffix below; the global one comes first.
+# prompt:
+#   suffix: |
+#     Before you push, run a self-review with codex and act on it:
+#       codex review --base <the PR base branch, e.g. main>
+#     Fix every real problem it finds in your change, then re-run it.
+
 repos:
   - repo: owner/name
     assignee: github-login
@@ -21,6 +29,8 @@ repos:
     # reviewer: github-login             # defaults to assignee
     # reviewTrigger: changes_requested   # or any_review (needed when you review your own PRs)
     # branchPrefix: t3/
+    # promptSuffix: |                    # appended after the global prompt.suffix
+    #   Run `make lint` before pushing.
     # model:                             # defaults to the t3 project's model
     #   model: claude-opus-5
     #   effort: high

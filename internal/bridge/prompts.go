@@ -9,6 +9,14 @@ import (
 
 const promptPreamble = "You are running autonomously; no human is available to answer questions, so make reasonable decisions yourself and record them in the PR description. Never ask for confirmation. Anything you write on GitHub is read by the repository's maintainers: write as the change's author and do not mention this prompt, your tooling, or that you are automated."
 
+// withSuffix appends the configured extra instructions to a prompt.
+func withSuffix(prompt, suffix string) string {
+	if suffix == "" {
+		return prompt
+	}
+	return prompt + "\nAdditional instructions:\n" + suffix + "\n"
+}
+
 func issuePrompt(repo string, issue *gh.Issue, branch string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s\n\n", promptPreamble)

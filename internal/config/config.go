@@ -13,11 +13,18 @@ import (
 )
 
 type Config struct {
-	T3    T3Config     `yaml:"t3"`
-	State StateConfig  `yaml:"state"`
-	Poll  PollConfig   `yaml:"poll"`
-	UI    UIConfig     `yaml:"ui"`
-	Repos []RepoConfig `yaml:"repos"`
+	T3     T3Config     `yaml:"t3"`
+	State  StateConfig  `yaml:"state"`
+	Poll   PollConfig   `yaml:"poll"`
+	UI     UIConfig     `yaml:"ui"`
+	Prompt PromptConfig `yaml:"prompt"`
+	Repos  []RepoConfig `yaml:"repos"`
+}
+
+// PromptConfig holds extra instructions appended to every prompt the daemon
+// sends to a session.
+type PromptConfig struct {
+	Suffix string `yaml:"suffix,omitempty"`
 }
 
 type UIConfig struct {
@@ -76,6 +83,20 @@ type RepoConfig struct {
 	ReviewTrigger ReviewTrigger `yaml:"reviewTrigger,omitempty"`
 	// BranchPrefix for session branches; defaults to "t3/".
 	BranchPrefix string `yaml:"branchPrefix,omitempty"`
+	// PromptSuffix is appended after the global prompt.suffix for this repo.
+	PromptSuffix string `yaml:"promptSuffix,omitempty"`
+}
+
+// PromptSuffixFor returns the extra instructions for a repo: the global
+// suffix first, then the repo's own.
+func (c *Config) PromptSuffixFor(rc *RepoConfig) string {
+	parts := make([]string, 0, 2)
+	for _, s := range []string{c.Prompt.Suffix, rc.PromptSuffix} {
+		if s = strings.TrimSpace(s); s != "" {
+			parts = append(parts, s)
+		}
+	}
+	return strings.Join(parts, "\n\n")
 }
 
 // ModelConfig is the friendly config form of a t3 model selection.

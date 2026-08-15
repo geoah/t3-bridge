@@ -209,7 +209,7 @@ func (b *Bridge) startIssueThread(ctx context.Context, rc *config.RepoConfig, pr
 		Message: t3.UserMessage{
 			MessageID:   t3.NewID(),
 			Role:        "user",
-			Text:        issuePrompt(rc.Repo, issue, branch),
+			Text:        withSuffix(issuePrompt(rc.Repo, issue, branch), b.Cfg.PromptSuffixFor(rc)),
 			Attachments: []any{},
 		},
 		RuntimeMode:     t3.RuntimeModeFullAccess,
@@ -362,7 +362,7 @@ func (b *Bridge) handleMissingPR(ctx context.Context, rc *config.RepoConfig, ite
 	item.NudgeCount++
 	b.St.Put(item)
 	log.Info("turn completed without a PR; nudging session once")
-	return b.startFollowUpTurn(ctx, item, th, nudgePrompt(item.Repo, item.IssueNumber, item.Branch))
+	return b.startFollowUpTurn(ctx, item, th, withSuffix(nudgePrompt(item.Repo, item.IssueNumber, item.Branch), b.Cfg.PromptSuffixFor(rc)))
 }
 
 // forwardNewReviews sends unhandled triggering reviews to the session.
@@ -419,7 +419,7 @@ func (b *Bridge) forwardNewReviews(ctx context.Context, rc *config.RepoConfig, i
 	if err != nil {
 		return err
 	}
-	text := reviewPrompt(item.Repo, item.PRNumber, item.Branch, triggered, cs)
+	text := withSuffix(reviewPrompt(item.Repo, item.PRNumber, item.Branch, triggered, cs), b.Cfg.PromptSuffixFor(rc))
 	if err := b.startFollowUpTurn(ctx, item, th, text); err != nil {
 		return err
 	}

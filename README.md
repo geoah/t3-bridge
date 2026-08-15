@@ -98,6 +98,21 @@ repos:
 See `config.example.yaml` for all options (base branch, branch prefix,
 model override, t3 project id).
 
+### Extra prompt instructions
+
+`prompt.suffix` is appended to every prompt the daemon sends to a session,
+and a repo's `promptSuffix` is appended after it. Use this for house rules
+the sessions should follow, for example running a self-review before
+pushing:
+
+```yaml
+prompt:
+  suffix: |
+    Before you push, run a self-review with codex and act on it:
+      codex review --base <the PR base branch, e.g. main>
+    Fix every real problem it finds in your change, then re-run it.
+```
+
 - `assignee`: issues assigned to this login get picked up. Assigning requires
   triage permission or higher on the repo, so only trusted people can trigger
   sessions.
