@@ -66,12 +66,42 @@ type RepoConfig struct {
 	ProjectID     string `yaml:"projectId,omitempty"`
 	// BaseBranch for new worktrees; defaults to the repo default branch.
 	BaseBranch string `yaml:"baseBranch,omitempty"`
-	// Model overrides the project default model for bridge sessions.
-	Model *t3.ModelSelection `yaml:"model,omitempty"`
+	// Reviewer is requested on the PR once the work is ready; defaults to
+	// Assignee. GitHub rejects requesting a review from the PR's own
+	// author, which is logged as a warning.
+	Reviewer string `yaml:"reviewer,omitempty"`
+	// Model overrides the project default model for sessions on this repo.
+	Model *ModelConfig `yaml:"model,omitempty"`
 	// ReviewTrigger defaults to changes_requested.
 	ReviewTrigger ReviewTrigger `yaml:"reviewTrigger,omitempty"`
 	// BranchPrefix for session branches; defaults to "t3/".
 	BranchPrefix string `yaml:"branchPrefix,omitempty"`
+}
+
+// ModelConfig is the friendly config form of a t3 model selection.
+type ModelConfig struct {
+	// Model is a t3 model id, for example claude-opus-5.
+	Model string `yaml:"model"`
+	// InstanceID is the provider instance, default claudeAgent.
+	InstanceID string `yaml:"instanceId,omitempty"`
+	// Effort is the reasoning effort, for example high.
+	Effort string `yaml:"effort,omitempty"`
+	// ContextWindow, for example 1m.
+	ContextWindow string `yaml:"contextWindow,omitempty"`
+}
+
+func (m *ModelConfig) Selection() t3.ModelSelection {
+	sel := t3.ModelSelection{InstanceID: m.InstanceID, Model: m.Model}
+	if sel.InstanceID == "" {
+		sel.InstanceID = "claudeAgent"
+	}
+	if m.Effort != "" {
+		sel.Options = append(sel.Options, t3.ModelOption{ID: "effort", Value: m.Effort})
+	}
+	if m.ContextWindow != "" {
+		sel.Options = append(sel.Options, t3.ModelOption{ID: "contextWindow", Value: m.ContextWindow})
+	}
+	return sel
 }
 
 func (r *RepoConfig) Owner() string {
@@ -148,6 +178,12 @@ func Load(path string) (*Config, error) {
 		}
 		if rc.BranchPrefix == "" {
 			rc.BranchPrefix = "t3/"
+		}
+		if rc.Reviewer == "" {
+			rc.Reviewer = rc.Assignee
+		}
+		if rc.Model != nil && rc.Model.Model == "" {
+			return nil, fmt.Errorf("config: repo %s: model.model is required when model is set", rc.Repo)
 		}
 	}
 	return &cfg, nil

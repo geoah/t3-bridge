@@ -124,7 +124,7 @@ func (b *Bridge) reconcileRepo(ctx context.Context, rc *config.RepoConfig, shell
 
 func (b *Bridge) modelFor(rc *config.RepoConfig, project *t3.Project) t3.ModelSelection {
 	if rc.Model != nil {
-		return *rc.Model
+		return rc.Model.Selection()
 	}
 	if project.DefaultModelSelection != nil {
 		return *project.DefaultModelSelection
@@ -225,7 +225,7 @@ func (b *Bridge) startIssueThread(ctx context.Context, rc *config.RepoConfig, pr
 		Repo: rc.Repo, IssueNumber: issue.Number, IssueTitle: issue.Title,
 		ThreadID: threadID, Branch: branch,
 	})
-	comment := fmt.Sprintf("t3-bridge picked this up: session `%s` is working on branch `%s` and will open a draft PR here when done.", threadID, branch)
+	comment := fmt.Sprintf("Working on this in `%s`.", branch)
 	if err := b.GH.CommentOnIssue(ctx, rc.Repo, issue.Number, comment); err != nil {
 		b.Log.Warn("comment on issue", "repo", rc.Repo, "issue", issue.Number, "err", err)
 	}
@@ -300,7 +300,37 @@ func (b *Bridge) reconcileItem(ctx context.Context, rc *config.RepoConfig, item 
 		log.Info("issue flow finished", "reason", reason, "pr", pr.Number)
 		return nil
 	}
+	b.requestReview(ctx, rc, item, th, pr, log)
 	return b.forwardNewReviews(ctx, rc, item, th, log)
+}
+
+// requestReview promotes the PR out of draft and asks the reviewer to look,
+// once per round of session work.
+func (b *Bridge) requestReview(ctx context.Context, rc *config.RepoConfig, item *state.Item, th *t3.ThreadShell, pr *gh.PullRequest, log *slog.Logger) {
+	if th.LatestTurn == nil || th.LatestTurn.State != t3.TurnStateCompleted {
+		return
+	}
+	if item.ReviewRequestedTurnID == th.LatestTurn.TurnID {
+		return
+	}
+	if pr.Draft {
+		if err := b.GH.MarkPRReady(ctx, item.Repo, pr.Number); err != nil {
+			log.Warn("mark PR ready for review", "pr", pr.Number, "err", err)
+			return
+		}
+		log.Info("marked PR ready for review", "pr", pr.Number)
+	}
+	if !pr.ReviewerRequested(rc.Reviewer) {
+		if err := b.GH.RequestReviewer(ctx, item.Repo, pr.Number, rc.Reviewer); err != nil {
+			// Most often GitHub refusing to let an author review their
+			// own PR; the PR is ready either way, so do not retry.
+			log.Warn("request reviewer", "pr", pr.Number, "reviewer", rc.Reviewer, "err", err)
+		} else {
+			log.Info("requested review", "pr", pr.Number, "reviewer", rc.Reviewer)
+		}
+	}
+	item.ReviewRequestedTurnID = th.LatestTurn.TurnID
+	b.St.Put(item)
 }
 
 // handleMissingPR deals with an idle session that has not produced a PR.

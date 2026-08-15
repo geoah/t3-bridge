@@ -21,11 +21,15 @@ type Item struct {
 	// HandledReviewIDs are GitHub review ids already forwarded to the session.
 	HandledReviewIDs []int64 `json:"handledReviewIds,omitempty"`
 	// NudgeCount tracks reminders sent when a completed turn left no PR.
-	NudgeCount int       `json:"nudgeCount,omitempty"`
-	Done       bool      `json:"done,omitempty"`
-	DoneReason string    `json:"doneReason,omitempty"`
-	CreatedAt  time.Time `json:"createdAt"`
-	UpdatedAt  time.Time `json:"updatedAt"`
+	NudgeCount int `json:"nudgeCount,omitempty"`
+	// ReviewRequestedTurnID is the session turn whose completion already
+	// triggered "mark ready + request review", so each round of work asks
+	// for review exactly once.
+	ReviewRequestedTurnID string    `json:"reviewRequestedTurnId,omitempty"`
+	Done                  bool      `json:"done,omitempty"`
+	DoneReason            string    `json:"doneReason,omitempty"`
+	CreatedAt             time.Time `json:"createdAt"`
+	UpdatedAt             time.Time `json:"updatedAt"`
 }
 
 func (it *Item) Key() string {

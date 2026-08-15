@@ -25,13 +25,16 @@ Every tick (default 60s) the daemon runs one reconcile pass:
    `Fixes #N`. The daemon also comments on the issue so there is a visible
    record.
 2. Session turn finished: the daemon finds the PR by its head branch and
-   records it. If the turn completed without a PR it nudges the session once
-   (the session may legitimately have declined and commented on the issue).
+   records it, marks it ready for review, and requests a review from the
+   configured reviewer. If the turn completed without a PR it nudges the
+   session once (the session may legitimately have declined and commented on
+   the issue).
 3. New review on the PR with state `CHANGES_REQUESTED` (or, with
    `reviewTrigger: "any_review"`, any substantive `COMMENTED` review): the
    daemon sends the review body plus all inline comments as a follow-up turn
    to the same thread. The session addresses the feedback, pushes to the same
-   branch, and summarizes in a PR comment.
+   branch, and summarizes in a PR comment; the daemon then requests a fresh
+   review. Each round of work asks for review exactly once.
 4. PR merged or closed: the thread is archived, which also stops the provider
    session.
 
@@ -105,8 +108,19 @@ model override, t3 project id).
     does not allow "Request changes" on your own PR. Empty synthetic reviews
     created by replying to inline threads are ignored, so the session
     replying to feedback cannot re-trigger itself.
-- `model`: optional `{ "instanceId": "claudeAgent", "model": "..." }`
-  override; defaults to the t3 project's default model.
+- `reviewer`: who is asked for review once the work is ready; defaults to
+  `assignee`. GitHub refuses to let an author review their own PR, so in
+  single-account setups the request is skipped with a warning (the PR is
+  still marked ready).
+- `model`: per-repo model override, defaults to the t3 project's model:
+
+  ```yaml
+  model:
+    model: claude-opus-5
+    effort: high        # optional
+    contextWindow: 1m   # optional
+    instanceId: claudeAgent  # optional, this is the default
+  ```
 
 ## Monitoring UI
 
@@ -135,8 +149,12 @@ tailscale serve --bg --https=8443 http://127.0.0.1:3775
 
 ## Operational notes
 
-- The daemon never merges PRs and never marks them ready for review; the
-  owner stays in the loop.
+- The daemon never merges PRs; the owner stays in the loop. PRs start as
+  drafts while the session works and are marked ready for review only when
+  its turn finishes.
+- Nothing the daemon writes on GitHub advertises itself: the pickup comment
+  just says which branch the work is on, and sessions are told to write as
+  the change's author.
 - If a session ends up waiting for human input in the t3 UI, the daemon logs
   it and leaves the thread alone.
 - To retry a given-up issue (session errored, or finished without a PR

@@ -18,8 +18,11 @@ repos:
     workspaceRoot: /path/to/local/checkout
     # projectId: ""                      # alternative to workspaceRoot
     # baseBranch: main                   # defaults to the repo default branch
+    # reviewer: github-login             # defaults to assignee
     # reviewTrigger: changes_requested   # or any_review (needed when you review your own PRs)
     # branchPrefix: t3/
-    # model:
+    # model:                             # defaults to the t3 project's model
+    #   model: claude-opus-5
+    #   effort: high
+    #   contextWindow: 1m
     #   instanceId: claudeAgent
-    #   model: claude-fable-5

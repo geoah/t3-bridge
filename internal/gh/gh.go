@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -66,16 +67,26 @@ type Issue struct {
 }
 
 type PullRequest struct {
-	Number  int    `json:"number"`
-	State   string `json:"state"` // open, closed
-	Merged  bool   `json:"merged"`
-	Draft   bool   `json:"draft"`
-	Title   string `json:"title"`
-	HTMLURL string `json:"html_url"`
-	User    User   `json:"user"`
-	Head    struct {
+	Number             int    `json:"number"`
+	State              string `json:"state"` // open, closed
+	Merged             bool   `json:"merged"`
+	Draft              bool   `json:"draft"`
+	Title              string `json:"title"`
+	HTMLURL            string `json:"html_url"`
+	User               User   `json:"user"`
+	RequestedReviewers []User `json:"requested_reviewers"`
+	Head               struct {
 		Ref string `json:"ref"`
 	} `json:"head"`
+}
+
+func (pr *PullRequest) ReviewerRequested(login string) bool {
+	for _, u := range pr.RequestedReviewers {
+		if strings.EqualFold(u.Login, login) {
+			return true
+		}
+	}
+	return false
 }
 
 type Review struct {
@@ -186,6 +197,52 @@ func (c *Client) ListReviewComments(ctx context.Context, repo string, number int
 	err := c.api(ctx, &comments, fmt.Sprintf("repos/%s/pulls/%d/comments", repo, number),
 		"--paginate", "-X", "GET", "-f", "per_page=100")
 	return comments, err
+}
+
+// MarkPRReady takes a draft PR out of draft. Toggling draft state is
+// GraphQL-only on GitHub's API, so this goes through `gh pr ready`.
+func (c *Client) MarkPRReady(ctx context.Context, repo string, number int) error {
+	bin := c.Bin
+	if bin == "" {
+		bin = "gh"
+	}
+	cmd := exec.CommandContext(ctx, bin, "pr", "ready", strconv.Itoa(number), "--repo", repo)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("gh pr ready: %w: %s", err, strings.TrimSpace(stderr.String()))
+	}
+	return nil
+}
+
+// RequestReviewer asks login for a review. GitHub rejects requesting a
+// review from the PR's own author with a 422.
+func (c *Client) RequestReviewer(ctx context.Context, repo string, number int, login string) error {
+	body, err := json.Marshal(map[string][]string{"reviewers": {login}})
+	if err != nil {
+		return err
+	}
+	return c.apiInput(ctx, string(body), fmt.Sprintf("repos/%s/pulls/%d/requested_reviewers", repo, number), "-X", "POST")
+}
+
+// apiInput calls gh api with a JSON request body on stdin.
+func (c *Client) apiInput(ctx context.Context, body string, args ...string) error {
+	bin := c.Bin
+	if bin == "" {
+		bin = "gh"
+	}
+	cmd := exec.CommandContext(ctx, bin, append([]string{"api"}, append(args, "--input", "-")...)...)
+	cmd.Stdin = strings.NewReader(body)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		if len(msg) > 400 {
+			msg = msg[:400]
+		}
+		return fmt.Errorf("gh api %s: %w: %s", args[0], err, msg)
+	}
+	return nil
 }
 
 // Viewer returns the authenticated login, as a doctor check.

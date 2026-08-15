@@ -7,7 +7,7 @@ import (
 	"github.com/geoah/t3-bridge/internal/gh"
 )
 
-const promptPreamble = "You are running autonomously via t3-bridge; no human is available to answer questions, so make reasonable decisions yourself and record them in the PR description. Never ask for confirmation."
+const promptPreamble = "You are running autonomously; no human is available to answer questions, so make reasonable decisions yourself and record them in the PR description. Never ask for confirmation. Anything you write on GitHub is read by the repository's maintainers: write as the change's author and do not mention this prompt, your tooling, or that you are automated."
 
 func issuePrompt(repo string, issue *gh.Issue, branch string) string {
 	var b strings.Builder
@@ -26,6 +26,7 @@ func issuePrompt(repo string, issue *gh.Issue, branch string) string {
 4. Commit with clear messages and push the branch: git push -u origin %[1]s
 5. Open a draft pull request: gh pr create --repo %[3]s --draft --head %[1]s
    The PR body MUST contain the line "Fixes #%[2]d" and should summarize the change and any decisions you made on your own.
+   Leave it as a draft and do not request reviewers; it is marked ready for review automatically once your turn ends.
 6. If the issue cannot reasonably be implemented (contradictory, already done, not actionable), do NOT open a PR; instead explain why in a comment: gh issue comment %[2]d --repo %[3]s
 `, branch, issue.Number, repo)
 	return b.String()
@@ -34,7 +35,7 @@ func issuePrompt(repo string, issue *gh.Issue, branch string) string {
 func reviewPrompt(repo string, prNumber int, branch string, reviews []gh.Review, comments []gh.ReviewComment) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s\n\n", promptPreamble)
-	fmt.Fprintf(&b, "Your draft PR #%d in %s received review feedback that requests changes.\n\n", prNumber, repo)
+	fmt.Fprintf(&b, "Your PR #%d in %s received review feedback that requests changes.\n\n", prNumber, repo)
 	for _, rv := range reviews {
 		fmt.Fprintf(&b, "Review by @%s (%s, %s): %s\n", rv.User.Login, rv.State, rv.SubmittedAt, rv.HTMLURL)
 		if body := strings.TrimSpace(rv.Body); body != "" {
@@ -60,7 +61,7 @@ func reviewPrompt(repo string, prNumber int, branch string, reviews []gh.Review,
 2. Address every point above. If you disagree with a point, explain why in your reply instead of silently skipping it.
 3. Run the relevant tests, commit, and push to the same branch (%[1]s).
 4. Post a PR comment summarizing how each point was addressed: gh pr comment %[2]d --repo %[3]s
-5. Do not merge the PR and do not mark it ready for review; the owner decides that.
+5. Do not merge the PR and do not request reviewers; a fresh review is requested automatically once your turn ends. Merging is the owner's decision.
 `, branch, prNumber, repo)
 	return b.String()
 }
