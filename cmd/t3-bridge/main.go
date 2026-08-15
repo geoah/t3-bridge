@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -71,9 +72,30 @@ func main() {
 		}
 		interval := time.Duration(cfg.Poll.IntervalSeconds) * time.Second
 		log.Info("t3-bridge running", "interval", interval, "repos", len(cfg.Repos))
+		watcher := config.NewWatcher(*configPath)
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {
+			// Reload before the tick so an edit applies to the very next
+			// pass. Tick runs on this goroutine, so nothing reads the config
+			// while it is swapped.
+			next, err := watcher.Reload()
+			switch {
+			case err != nil:
+				log.Error("config reload failed, keeping the previous config", "path", watcher.Path(), "err", err)
+			case next != nil:
+				if restart := config.RestartRequired(cfg, next); len(restart) > 0 {
+					log.Warn("these settings only apply at startup; restart t3-bridge to pick them up",
+						"settings", strings.Join(restart, ", "))
+				}
+				cfg = next
+				b.Cfg = next
+				if d := time.Duration(cfg.Poll.IntervalSeconds) * time.Second; d != interval {
+					interval = d
+					ticker.Reset(interval)
+				}
+				log.Info("config reloaded", "repos", len(cfg.Repos), "interval", interval)
+			}
 			start := time.Now()
 			if err := b.Tick(ctx); err != nil {
 				log.Error("tick failed", "err", err)

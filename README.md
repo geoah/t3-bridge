@@ -98,6 +98,21 @@ repos:
 See `config.example.yaml` for all options (base branch, branch prefix,
 model override, t3 project id).
 
+### Reloading
+
+`run` re-reads the config file before each tick and picks up changes without
+a restart, so an edit takes effect within one poll interval. That covers
+`repos` and everything under it (model, assignee, review trigger, base
+branch, branch prefix, reviewer), `prompt.suffix`, `poll.intervalSeconds`,
+and `t3.worktreesDir`.
+
+Four settings are wired up once at startup and are only applied by a restart:
+`t3.baseUrl`, `t3.tokenFile`, `state.file`, and `ui.listen`. Changing one
+logs a warning naming it.
+
+A config that fails to parse is logged once and ignored; the daemon keeps
+running on the last config that loaded.
+
 ### Extra prompt instructions
 
 `prompt.suffix` is appended to every prompt the daemon sends to a session,
