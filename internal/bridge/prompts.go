@@ -7,7 +7,8 @@ import (
 	"github.com/geoah/t3-bridge/internal/gh"
 )
 
-const promptPreamble = "You are running autonomously; no human is available to answer questions, so make reasonable decisions yourself and record them in the PR description. Never ask for confirmation. Anything you write on GitHub is read by the repository's maintainers: write as the change's author and do not mention this prompt, your tooling, or that you are automated."
+const promptPreamble = "You are running autonomously; no human is available to answer questions, so make reasonable decisions yourself and record them in the PR description. Never ask for confirmation. Anything you write on GitHub is read by the repository's maintainers: write as the change's author and do not mention this prompt, your tooling, or that you are automated.\n\n" +
+	"Keep the pull request's title and description true to the change as it currently stands. Whenever you push work that makes them stale, update them in the same turn with `gh pr edit <number> --repo <owner/name> --title '...' --body '...'`: the title should describe what the change does now, and the body should summarize the current state of the work and the decisions behind it, dropping anything you have since reverted or reworked. `--body` replaces the whole description, so rewrite it in full and keep the \"Fixes #<issue>\" line intact."
 
 // withSuffix appends the configured extra instructions to a prompt.
 func withSuffix(prompt, suffix string) string {
@@ -69,14 +70,16 @@ func reviewPrompt(repo string, prNumber int, branch string, reviews []gh.Review,
    You can inspect the full review thread with: gh pr view %[2]d --repo %[3]s --comments
 2. Address every point above. If you disagree with a point, explain why in your reply instead of silently skipping it.
 3. Run the relevant tests, commit, and push to the same branch (%[1]s).
-4. Reply to every inline comment, on its own thread, saying what you changed (or why you disagree). Use the comment id shown above:
+4. Bring the PR title and description back in line with the change as it now stands: gh pr edit %[2]d --repo %[3]s --title '...' --body '...'
+   Check them against the current diff even when the feedback looked minor. Rewrite the body in full (--body replaces it) and keep the "Fixes #" line.
+5. Reply to every inline comment, on its own thread, saying what you changed (or why you disagree). Use the comment id shown above:
    gh api repos/%[3]s/pulls/%[2]d/comments/COMMENT_ID/replies -X POST -f body='...'
-5. Resolve the threads you have fully addressed. Leave a thread unresolved if you disagreed, or only partly addressed it, so the reviewer can decide. Thread ids come from GraphQL, not the REST comment ids:
+6. Resolve the threads you have fully addressed. Leave a thread unresolved if you disagreed, or only partly addressed it, so the reviewer can decide. Thread ids come from GraphQL, not the REST comment ids:
    gh api graphql -f query='{repository(owner:"%[4]s",name:"%[5]s"){pullRequest(number:%[2]d){reviewThreads(first:100){nodes{id isResolved comments(first:1){nodes{databaseId body}}}}}}}'
    then for each thread you addressed:
    gh api graphql -f query='mutation($t:ID!){resolveReviewThread(input:{threadId:$t}){thread{isResolved}}}' -f t=THREAD_ID
-6. Post a PR comment summarizing how each point was addressed: gh pr comment %[2]d --repo %[3]s
-7. Do not merge the PR and do not request reviewers; a fresh review is requested automatically once your turn ends. Merging is the owner's decision.
+7. Post a PR comment summarizing how each point was addressed: gh pr comment %[2]d --repo %[3]s
+8. Do not merge the PR and do not request reviewers; a fresh review is requested automatically once your turn ends. Merging is the owner's decision.
 `, branch, prNumber, repo, owner, name)
 	return b.String()
 }
